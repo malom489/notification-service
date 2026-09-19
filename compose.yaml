@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: notif-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 6561loma57
+      POSTGRES_DB: notifications
+    ports:
+      - "5433:5432"
+    volumes:
+      - notif_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:7-alpine
+    container_name: notif-redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  notif_data:
+
+    
+
