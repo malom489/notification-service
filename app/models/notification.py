@@ -83,6 +83,7 @@ class Notification(Base):
         back_populates="notification",
         cascade="all, delete-orphan",
         order_by="DeliveryAttempt.attempt_number",
+        lazy="selectin"
     )
 
     __table_args__ = (
