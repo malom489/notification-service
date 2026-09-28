@@ -3,12 +3,12 @@
 import logging
 
 from app.models.notification import Notification
-from app.services.senders.base import channelSender
+from app.services.senders.base import ChannelSender
 
 logger = logging.getLogger(__name__)
 
 
-class ConsoleSender(channelSender):
+class ConsoleSender(ChannelSender):
     """Pretends to deliver. Useful for testing the worker loop."""
 
     async def send(self, notification: Notification) -> None:

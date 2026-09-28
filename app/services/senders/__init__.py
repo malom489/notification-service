@@ -1,17 +1,18 @@
+
 """Channel sender registry. Maps channel type to sender instance."""
 
 from app.models.notification import NotificationChannel
-from app.services.senders.base import channelSender
+from app.services.senders.base import ChannelSender
 from app.services.senders.console import ConsoleSender
+from app.services.senders.email import EmailSender
 
-# Instantiate senders once. They're stateless.
-_SENDERS: dict[NotificationChannel, channelSender] = {
-    NotificationChannel.EMAIL: ConsoleSender(),   # replace with EmailSender in M5
-    NotificationChannel.SMS: ConsoleSender(),     # replace in M8
-    NotificationChannel.WEBHOOK: ConsoleSender(), # replace in M8
+_SENDERS: dict[NotificationChannel, ChannelSender] = {
+    NotificationChannel.EMAIL: EmailSender(),
+    NotificationChannel.SMS: ConsoleSender(),
+    NotificationChannel.WEBHOOK: ConsoleSender(),
 }
 
 
-def get_sender(channel: NotificationChannel) -> channelSender:
+def get_sender(channel: NotificationChannel) -> ChannelSender:
     """Get the sender for a channel. Raises KeyError if unknown."""
     return _SENDERS[channel]
