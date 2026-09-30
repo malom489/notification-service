@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     RETRY_BASE_DELAY_SECONDS: int=2
     RETRY_MAX_DELAY_SECONDS:int=300
     RETRY_JITTER_MAX_SECONDS:int=5
+    #WEHOOKS
+    WEBHOOK_SECRET:str=""
+    WEBHOOK_TIMEOUT_SECONDS:int=10
+    SMS_PROVIDER:str ="console"
     model_config=SettingsConfigDict(
         env_file=str(ROOT_DIR / ".env"),
         case_sensitive=True,
