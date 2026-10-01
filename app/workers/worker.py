@@ -21,15 +21,10 @@ from app.services.senders import get_sender
 from app.services.queue import claim_next_notification
 from app.services.retry import calculate_next_retry
 from app.services.senders import get_sender
+from app.core.logging import setup_logging
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s UTC [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+setup_logging()
 
-# Force UTC for logging
-logging.Formatter.converter = time.gmtime
 logger = logging.getLogger("worker")
 
 # Graceful shutdown flag
