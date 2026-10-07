@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
 
-    
+    TEST_DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5433/notifications_test"
     DATABASE_URL: str
     REDIS_URL: str
     SECRET_KEY: str

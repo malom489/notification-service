@@ -42,7 +42,7 @@ async def five_pending_jobs(db_session):
 
 async def _worker(worker_id: str, results: list):
     """Simulate one worker with its own engine+session, in its own loop."""
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    engine = create_async_engine(settings.TEST_DATABASE_URL, echo=False)
     SessionFactory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     try:
         async with SessionFactory() as db:

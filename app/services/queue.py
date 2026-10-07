@@ -1,6 +1,5 @@
-#queue operations 
 
-from datetime import datetime
+"""Queue operations for claiming notifications."""
 
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,10 +16,11 @@ async def claim_next_notification(
 
     Returns the claimed Notification, or None if the queue is empty.
 
-    The claim is a single UPDATE with a FOR UPDATE SKIP LOCKED subquery.
-    Two workers calling this concurrently will receive different rows.
+    Uses a scalar subquery (not IN) so the UPDATE matches exactly one
+    row. FOR UPDATE SKIP LOCKED inside the subquery lets concurrent
+    workers claim different rows without blocking.
     """
-    # Subquery: find the oldest eligible pending notification, lock it
+    # Scalar subquery: exactly one ID, or NULL
     subquery = (
         select(Notification.id)
         .where(
@@ -30,12 +30,12 @@ async def claim_next_notification(
         .order_by(Notification.scheduled_for)
         .with_for_update(skip_locked=True)
         .limit(1)
+        .scalar_subquery()
     )
 
-    # Outer UPDATE: set it to processing, tag the worker, return the row
     stmt = (
         update(Notification)
-        .where(Notification.id.in_(subquery))
+        .where(Notification.id == subquery)
         .values(
             status=NotificationStatus.PROCESSING,
             locked_by=worker_id,
