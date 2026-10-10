@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Notification Service"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
-
+   #database connection for testing and production
     TEST_DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5433/notifications_test"
     DATABASE_URL: str
     REDIS_URL: str
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     RETRY_BASE_DELAY_SECONDS: int=2
     RETRY_MAX_DELAY_SECONDS:int=300
     RETRY_JITTER_MAX_SECONDS:int=5
-    #WEHOOKS
+    # this is the webhook settings for  the notifictaion to send messages and receive from the webhook
     WEBHOOK_SECRET:str=""
     WEBHOOK_TIMEOUT_SECONDS:int=10
     SMS_PROVIDER:str ="console"
