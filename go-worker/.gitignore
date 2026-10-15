@@ -1,0 +1,7 @@
+# Go binaries
+worker
+*.exe
+*.test
+
+# Go build artifacts
+vendor/
