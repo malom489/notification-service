@@ -44,13 +44,27 @@ def _make_notification() -> Notification:
     )
 
 
+def _mock_session_with(notification):
+    """Build a mock session that returns the given notification from get()."""
+    mock_db = AsyncMock()
+    mock_db.get = AsyncMock(return_value=notification)
+
+    # execute() returns a mock; rowcount=1 simulates "we held the lease"
+    mock_result = MagicMock()
+    mock_result.rowcount = 1
+    mock_db.execute = AsyncMock(return_value=mock_result)
+    mock_db.commit = AsyncMock()
+    mock_db.add = MagicMock()
+    return mock_db
+
+
 async def test_process_one_empty_queue():
     """When the queue is empty, process_one returns False."""
-    mock_db = AsyncMock()
-    mock_db.get = AsyncMock(return_value=None)
+    mock_db = _mock_session_with(None)
 
     with patch("app.workers.worker.SessionLocal") as mock_session_cls, \
-         patch("app.workers.worker.claim_next_notification", new_callable=AsyncMock, return_value=None):
+         patch("app.workers.worker.claim_next_notification",
+               new_callable=AsyncMock, return_value=None):
         mock_session_cls.return_value.__aenter__.return_value = mock_db
         mock_session_cls.return_value.__aexit__.return_value = None
 
@@ -61,13 +75,13 @@ async def test_process_one_empty_queue():
 
 
 async def test_process_one_success(fake_sender):
-    """A successful send records the attempt and marks SENT."""
+    """A successful send stages a DeliveryAttempt and commits."""
     notification = _make_notification()
-    mock_db = AsyncMock()
-    mock_db.get = AsyncMock(return_value=notification)
+    mock_db = _mock_session_with(notification)
 
     with patch("app.workers.worker.SessionLocal") as mock_session_cls, \
-         patch("app.workers.worker.claim_next_notification", new_callable=AsyncMock, return_value=notification), \
+         patch("app.workers.worker.claim_next_notification",
+               new_callable=AsyncMock, return_value=notification), \
          patch("app.workers.worker.get_sender", return_value=fake_sender):
 
         mock_session_cls.return_value.__aenter__.return_value = mock_db
@@ -77,22 +91,19 @@ async def test_process_one_success(fake_sender):
         result = await process_one("test-worker")
 
     assert result is True
-    # The sender was called
     fake_sender.send.assert_awaited_once_with(notification)
-    # A DeliveryAttempt was added
-    mock_db.add.assert_called_once()
-    # The commit was called
-    mock_db.commit.assert_awaited()
+    mock_db.add.assert_called_once()       # staged DeliveryAttempt
+    mock_db.commit.assert_awaited()        # committed
 
 
 async def test_process_one_retryable_failure(failing_sender):
-    """A retryable failure schedules a retry (status stays PENDING)."""
+    """A retryable failure stages a retry (execute called with PENDING status)."""
     notification = _make_notification()
-    mock_db = AsyncMock()
-    mock_db.get = AsyncMock(return_value=notification)
+    mock_db = _mock_session_with(notification)
 
     with patch("app.workers.worker.SessionLocal") as mock_session_cls, \
-         patch("app.workers.worker.claim_next_notification", new_callable=AsyncMock, return_value=notification), \
+         patch("app.workers.worker.claim_next_notification",
+               new_callable=AsyncMock, return_value=notification), \
          patch("app.workers.worker.get_sender", return_value=failing_sender):
 
         mock_session_cls.return_value.__aenter__.return_value = mock_db
@@ -102,7 +113,13 @@ async def test_process_one_retryable_failure(failing_sender):
         result = await process_one("test-worker")
 
     assert result is True
-    # Status is back to PENDING (retry scheduled)
-    assert notification.status == NotificationStatus.PENDING
-    assert notification.attempts == 1
-    assert notification.last_error is not None
+
+    # Inspect the UPDATE statement that was executed
+    assert mock_db.execute.await_count >= 1
+    # The values passed to the UPDATE should include status=PENDING
+    # and attempts=1 (the retry branch)
+    update_stmt = mock_db.execute.await_args_list[0].args[0]
+    params = update_stmt.compile().params
+    assert params.get("status") == NotificationStatus.PENDING
+    assert params.get("attempts") == 1
+    assert "scheduled_for" in params  # retry scheduled for later
