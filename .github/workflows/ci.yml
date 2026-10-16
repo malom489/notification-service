@@ -1,27 +1,31 @@
-name:CI
-on:
- push:
-  branches:[main]
- pull_request:
-    branches:[main]
-jobs:
- test:
- runs-on":ubuntu-latest
-   services:
-   postgres:
-   image:postgres:16-alpine
-   env:
-   POSTGRES_USER:postgres
-   POSTGRES-PASSSWORD:postgres
-   POSTGRES_DB:notification_test
 
-   ports:
-    -5432:5432
-    options:>-
-     --health-cmd pg_isready
-     --health-interval 5s
-     --health-timeout 5s
-     --health-retries 5
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: notifications_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5433/notifications
       TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5433/notifications_test
@@ -32,8 +36,9 @@ jobs:
       SMTP_USER: ""
       SMTP_PASSWORD: ""
       WEBHOOK_SECRET: ci-test-webhook-secret
-      EMAIL_FROM: notifications@test.local  
-       steps:
+      EMAIL_FROM: notifications@test.local
+
+    steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -54,7 +59,8 @@ jobs:
           from app.db.session import Base
           from app.models import Notification, DeliveryAttempt
           async def init():
-              url = 'postgresql+asyncpg://postgres:postgres@localhost:5433/notifications_test' engine = create_async_engine(url)
+              url = 'postgresql+asyncpg://postgres:postgres@localhost:5433/notifications_test'
+              engine = create_async_engine(url)
               async with engine.begin() as conn:
                   await conn.run_sync(Base.metadata.create_all)
               await engine.dispose()
@@ -63,4 +69,3 @@ jobs:
 
       - name: Run tests
         run: pytest tests/ -v --cov=app --cov-report=term-missing
-    
