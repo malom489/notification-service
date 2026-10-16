@@ -1,0 +1,66 @@
+name:CI
+on:
+ push:
+  branches:[main]
+ pull_request:
+    branches:[main]
+jobs:
+ test:
+ runs-on":ubuntu-latest
+   services:
+   postgres:
+   image:postgres:16-alpine
+   env:
+   POSTGRES_USER:postgres
+   POSTGRES-PASSSWORD:postgres
+   POSTGRES_DB:notification_test
+
+   ports:
+    -5432:5432
+    options:>-
+     --health-cmd pg_isready
+     --health-interval 5s
+     --health-timeout 5s
+     --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5433/notifications
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5433/notifications_test
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: ci-test-secret
+      SMTP_HOST: sandbox.smtp.mailtrap.io
+      SMTP_PORT: 2525
+      SMTP_USER: ""
+      SMTP_PASSWORD: ""
+      WEBHOOK_SECRET: ci-test-webhook-secret
+      EMAIL_FROM: notifications@test.local  
+       steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create test database tables
+        run: |
+          python -c "
+          import asyncio
+          from sqlalchemy.ext.asyncio import create_async_engine
+          from app.db.session import Base
+          from app.models import Notification, DeliveryAttempt
+          async def init():
+              url = 'postgresql+asyncpg://postgres:postgres@localhost:5433/notifications_test' engine = create_async_engine(url)
+              async with engine.begin() as conn:
+                  await conn.run_sync(Base.metadata.create_all)
+              await engine.dispose()
+          asyncio.run(init())
+          "
+
+      - name: Run tests
+        run: pytest tests/ -v --cov=app --cov-report=term-missing
+    
